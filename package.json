@@ -1,0 +1,27 @@
+{
+  "name": "express-zod",
+  "version": "0.0.1",
+  "description": "Express middleware that validates a request using zod and generates an OpenAPI spec",
+  "main": "src/index.ts",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "dev": "nodemon src/index.ts"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "jsonwebtoken": "^8.5.1",
+    "redoc-express": "^1.0.0",
+    "zod": "^3.19.1",
+    "zod-to-json-schema": "^3.19.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.14",
+    "@types/jsonwebtoken": "^8.5.9",
+    "@types/node": "^18.11.9",
+    "nodemon": "^2.0.20",
+    "openapi-types": "^12.0.2",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.9.3"
+  }
+}
