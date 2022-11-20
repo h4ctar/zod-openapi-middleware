@@ -19,7 +19,7 @@ export const KEY_PAIR = crypto.generateKeyPairSync("rsa", {
     }
 });
 
-type OperationConfig<ReqBody> = {
+type OperationConfig<ReqBody = any> = {
     path: string;
     method: OpenAPIV3.HttpMethods;
     reqBodySchema?: ZodSchema<ReqBody>;
@@ -57,7 +57,7 @@ export const operation = <ReqBody = any>(config: OperationConfig<ReqBody>, spec:
     };
 };
 
-const addOperationToSpec = (config: OperationConfig<any>, spec: OpenAPIV3.Document) => {
+const addOperationToSpec = (config: OperationConfig, spec: OpenAPIV3.Document) => {
     const pathObject = spec.paths[config.path];
     if (!pathObject) {
         throw new Error(`No path object in spec for ${config.path}`);
@@ -83,7 +83,7 @@ const addOperationToSpec = (config: OperationConfig<any>, spec: OpenAPIV3.Docume
     pathObject[config.method] = config.operation;
 };
 
-const checkSecurity = (req: Request, config: OperationConfig<any>, spec: OpenAPIV3.Document) => {
+const checkSecurity = (req: Request, config: OperationConfig, spec: OpenAPIV3.Document) => {
     const security = config.operation.security || spec.security;
     if (!security) {
         return;
@@ -115,13 +115,13 @@ const checkSecurity = (req: Request, config: OperationConfig<any>, spec: OpenAPI
     }
 };
 
-const checkPath = (req: Request, config: OperationConfig<any>) => {
+const checkPath = (req: Request, config: OperationConfig) => {
     if (req.path !== config.path) {
         throw new Error(`Request path does not match - ${req.path} != ${config.path}`);
     }
 };
 
-const checkMethod = (req: Request, config: OperationConfig<any>) => {
+const checkMethod = (req: Request, config: OperationConfig) => {
     if (req.method.toLowerCase() !== config.method) {
         throw new Error(`Request method does not match - ${req.method} != ${config.method}`);
     }
@@ -130,7 +130,7 @@ const checkMethod = (req: Request, config: OperationConfig<any>) => {
 const checkParams = () => {};
 const checkQuery = () => {};
 
-const checkAndParseRequestBody = (req: Request, config: OperationConfig<any>) => {
+const checkAndParseRequestBody = (req: Request, config: OperationConfig) => {
     if (config.reqBodySchema) {
         const parseResult = config.reqBodySchema.safeParse(req.body);
         if (parseResult.success) {
