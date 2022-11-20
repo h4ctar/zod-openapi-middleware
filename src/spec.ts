@@ -8,7 +8,8 @@ import zodToJsonSchema from "zod-to-json-schema";
 // Generate a key pair to use for signing and verifying the JWTs
 // This would usually be done by an OIDC provider, but it's here for testing
 export const KEY_PAIR = crypto.generateKeyPairSync("rsa", {
-    modulusLength: 4096,
+    // RS256 requires a modulus length of at least 2048 bits
+    modulusLength: 2048,
     publicKeyEncoding: {
         type: "spki",
         format: "pem",
@@ -16,10 +17,11 @@ export const KEY_PAIR = crypto.generateKeyPairSync("rsa", {
     privateKeyEncoding: {
         type: "pkcs8",
         format: "pem",
-        cipher: "aes-256-cbc",
-        passphrase: "top secret",
     },
 });
+// Logged so we can test with jwt.io
+console.log(KEY_PAIR.publicKey);
+console.log(KEY_PAIR.privateKey);
 
 // The operation configuration type
 type OperationConfig<ReqBody = any> = {
@@ -52,8 +54,8 @@ export const operation = <ReqBody = any>(config: OperationConfig<ReqBody>, spec:
         try {
             checkPath(req, config);
             checkMethod(req, config);
-            checkParams();
-            checkQuery();
+            checkPathParams();
+            checkQueryParams(req);
             checkAndParseRequestBody(req, config);
         } catch (err: any) {
             res.status(400).send(err.message);
@@ -109,7 +111,7 @@ const checkSecurity = (req: Request, config: OperationConfig, spec: OpenAPIV3.Do
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith("Bearer ")) {
         const token = authHeader.split(" ")[1];
-        const parseResult = Token.safeParse(jwt.verify(token, KEY_PAIR.publicKey));
+        const parseResult = Token.safeParse(jwt.verify(token, KEY_PAIR.publicKey, { algorithms: ["RS256"]}));
 
         if (parseResult.success) {
             // Check that the JWT has one of the required roles
@@ -136,8 +138,12 @@ const checkMethod = (req: Request, config: OperationConfig) => {
     }
 };
 
-const checkParams = () => {};
-const checkQuery = () => {};
+const checkPathParams = () => {};
+
+const checkQueryParams = (req: Request, spec: OpenAPIV3.Document) => {
+    const pathObject = spec.paths.find
+    if 
+};
 
 const checkAndParseRequestBody = (req: Request, config: OperationConfig) => {
     if (config.reqBodySchema) {

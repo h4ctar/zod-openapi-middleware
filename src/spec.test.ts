@@ -6,10 +6,8 @@ import { operation, KEY_PAIR } from "./spec";
 import jwt from "jsonwebtoken";
 
 const User = z.object({
-    name: z.string()
-        .describe("Name of user"),
-})
-    .describe("User model");
+    name: z.string().describe("Name of user"),
+}).describe("User model");
 
 const DEFAULT_SPEC: OpenAPIV3.Document = {
     openapi: "3.0.0",
@@ -240,7 +238,7 @@ describe("spec middleware", () => {
             });
 
             it("should respond with 403 if the parsed token does not match the token schema", () => {
-                const token = jwt.sign({ wrong: "wrong" }, { key: KEY_PAIR.privateKey, passphrase: "top secret" }, { algorithm: "RS256" });
+                const token = jwt.sign({ wrong: "wrong" }, KEY_PAIR.privateKey, { algorithm: "RS256" });
 
                 const spec: OpenAPIV3.Document = {
                     ...DEFAULT_SPEC,

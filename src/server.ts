@@ -27,6 +27,14 @@ const spec: OpenAPIV3.Document = {
             summary: "World Path",
             description: "Long description of the world path",
         },
+        "/query": {
+            summary: "Query Path",
+            description: "Long description of the query path",
+            parameters: [{
+                name: "hello",
+                in: "query",
+            }],
+        },
     },
     components: {
         securitySchemes: {
@@ -80,6 +88,19 @@ app.post(
             security: [{
                 auth: ["admin"]
             }],
+        },
+    }, spec),
+    (_req, res) => res.send("Hello World"),
+);
+
+// Add an operation with query params
+app.get(
+    "/query",
+    operation({
+        path: "/query",
+        method: OpenAPIV3.HttpMethods.GET,
+        operation: {
+            responses: {},
         },
     }, spec),
     (_req, res) => res.send("Hello World"),
