@@ -6,6 +6,6 @@ Express middleware that validates a request using zod and generates an OpenAPI s
 
 ## Basic usage
 
-Copy the `spec.ts` into your project and customise it.
+Copy the `src/spec.ts` into your project and customise it.
 
-Look at `server.ts` for an example of how to use it.
+Look at `src/server.ts` for an example of how to use it.
