@@ -5,6 +5,8 @@ import { OpenAPIV3 } from "openapi-types";
 import { z, ZodSchema } from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
 
+// Generate a key pair to use for signing and verifying the JWTs
+// This would usually be done by an OIDC provider, but it's here for testing
 export const KEY_PAIR = crypto.generateKeyPairSync("rsa", {
     modulusLength: 4096,
     publicKeyEncoding: {
@@ -16,9 +18,10 @@ export const KEY_PAIR = crypto.generateKeyPairSync("rsa", {
         format: "pem",
         cipher: "aes-256-cbc",
         passphrase: "top secret",
-    }
+    },
 });
 
+// The operation configuration type
 type OperationConfig<ReqBody = any> = {
     path: string;
     method: OpenAPIV3.HttpMethods;
@@ -26,11 +29,15 @@ type OperationConfig<ReqBody = any> = {
     operation: OpenAPIV3.OperationObject;
 };
 
+// The schema of the JWTs
 const Token = z.object({
     name: z.string(),
     roles: z.string().array(),
 });
 
+// The operation higher order function that returns an Express middleware
+// Adds the operation to the OpenAPI spec
+// The resulting middleware checks the security requirements and the rest of the request
 export const operation = <ReqBody = any>(config: OperationConfig<ReqBody>, spec: OpenAPIV3.Document): RequestHandler<any, any, ReqBody> => {
     addOperationToSpec(config, spec);
 
@@ -98,12 +105,14 @@ const checkSecurity = (req: Request, config: OperationConfig, spec: OpenAPIV3.Do
     // Find required roles
     const requiredRoles = requirement.auth;
 
+    // Decode and verify the JWT
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith("Bearer ")) {
         const token = authHeader.split(" ")[1];
         const parseResult = Token.safeParse(jwt.verify(token, KEY_PAIR.publicKey));
 
         if (parseResult.success) {
+            // Check that the JWT has one of the required roles
             if (requiredRoles.length > 0 && !requiredRoles.some((role) => parseResult.data.roles.includes(role))) {
                 throw new Error(`Token does not have any of the required roles - ${parseResult.data.roles} doesn't contain any of ${requiredRoles}`);
             }
