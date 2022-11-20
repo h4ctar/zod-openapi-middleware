@@ -2,7 +2,8 @@ import { expect } from "chai";
 import { NextFunction, Request, Response } from "express";
 import { OpenAPIV3 } from "openapi-types";
 import { z } from "zod";
-import { operation } from "./spec";
+import { operation, KEY_PAIR } from "./spec";
+import jwt from "jsonwebtoken";
 
 const User = z.object({
     name: z.string()
@@ -109,7 +110,7 @@ describe("spec middleware", () => {
             const schema = requestBody.content["application/json"].schema as OpenAPIV3.SchemaObject;
             expect(schema).to.exist;
             expect(schema.type).to.equal("object");
-       });
+        });
     });
 
     describe("validator", () => {
@@ -121,7 +122,7 @@ describe("spec middleware", () => {
                         "/hello": {},
                     },
                 };
-    
+
                 const middleware = operation({
                     path: "/hello",
                     method: OpenAPIV3.HttpMethods.GET,
@@ -135,7 +136,7 @@ describe("spec middleware", () => {
                     method: "GET",
                 };
                 let nextCalled = false;
-                const next: NextFunction = () => { nextCalled = true};
+                const next: NextFunction = () => { nextCalled = true };
 
                 middleware(req as Request, {} as Response, next);
                 expect(nextCalled).to.be.true;
@@ -148,7 +149,7 @@ describe("spec middleware", () => {
                         "/hello": {},
                     },
                 };
-    
+
                 const middleware = operation({
                     path: "/hello",
                     method: OpenAPIV3.HttpMethods.GET,
@@ -167,11 +168,11 @@ describe("spec middleware", () => {
                 };
                 const res = new MockResponse();
 
-                middleware(req as Request, res as unknown as Response, () => {});
+                middleware(req as Request, res as unknown as Response, () => { });
                 expect(res.code).to.equal(403);
                 expect(res.body).to.equal("No valid authorization header");
             });
-            
+
             it("should respond with 403 if there is an invalid authorization header", () => {
                 const spec: OpenAPIV3.Document = {
                     ...DEFAULT_SPEC,
@@ -179,7 +180,7 @@ describe("spec middleware", () => {
                         "/hello": {},
                     },
                 };
-    
+
                 const middleware = operation({
                     path: "/hello",
                     method: OpenAPIV3.HttpMethods.GET,
@@ -200,7 +201,7 @@ describe("spec middleware", () => {
                 };
                 const res = new MockResponse();
 
-                middleware(req as Request, res as unknown as Response, () => {});
+                middleware(req as Request, res as unknown as Response, () => { });
                 expect(res.code).to.equal(403);
                 expect(res.body).to.equal("No valid authorization header");
             });
@@ -212,7 +213,7 @@ describe("spec middleware", () => {
                         "/hello": {},
                     },
                 };
-    
+
                 const middleware = operation({
                     path: "/hello",
                     method: OpenAPIV3.HttpMethods.GET,
@@ -233,26 +234,272 @@ describe("spec middleware", () => {
                 };
                 const res = new MockResponse();
 
-                middleware(req as Request, res as unknown as Response, () => {});
+                middleware(req as Request, res as unknown as Response, () => { });
                 expect(res.code).to.equal(403);
                 expect(res.body).to.equal("jwt malformed");
             });
 
-            it("should respond with 403 if the parsed token does not match the token schema");
-            
-            it("should respond with 403 if the verified token is missing a required role");
-            
-            it("should pass if the token verifies and there are no required roles");
-            
-            it("should pass if the token verifies and has a required role");
+            it("should respond with 403 if the parsed token does not match the token schema", () => {
+                const token = jwt.sign({ wrong: "wrong" }, { key: KEY_PAIR.privateKey, passphrase: "top secret" }, { algorithm: "RS256" });
+
+                const spec: OpenAPIV3.Document = {
+                    ...DEFAULT_SPEC,
+                    paths: {
+                        "/hello": {},
+                    },
+                };
+
+                const middleware = operation({
+                    path: "/hello",
+                    method: OpenAPIV3.HttpMethods.GET,
+                    operation: {
+                        responses: {},
+                        security: [{
+                            auth: [],
+                        }],
+                    },
+                }, spec);
+
+                const req: Partial<Request> = {
+                    path: "/hello",
+                    method: "GET",
+                    headers: {
+                        authorization: `Bearer ${token}`,
+                    },
+                };
+                const res = new MockResponse();
+
+                middleware(req as Request, res as unknown as Response, () => { });
+                expect(res.code).to.equal(403);
+                expect(res.body).to.equal("Token does not match the schema");
+            });
+
+            it("should respond with 403 if the verified token is missing a required role", () => {
+                const token = jwt.sign({ name: "Ben", roles: ["wrong"] }, { key: KEY_PAIR.privateKey, passphrase: "top secret" }, { algorithm: "RS256" });
+
+                const spec: OpenAPIV3.Document = {
+                    ...DEFAULT_SPEC,
+                    paths: {
+                        "/hello": {},
+                    },
+                };
+
+                const middleware = operation({
+                    path: "/hello",
+                    method: OpenAPIV3.HttpMethods.GET,
+                    operation: {
+                        responses: {},
+                        security: [{
+                            auth: ["admin"],
+                        }],
+                    },
+                }, spec);
+
+                const req: Partial<Request> = {
+                    path: "/hello",
+                    method: "GET",
+                    headers: {
+                        authorization: `Bearer ${token}`,
+                    },
+                };
+                const res = new MockResponse();
+
+                middleware(req as Request, res as unknown as Response, () => { });
+                expect(res.code).to.equal(403);
+                expect(res.body).to.equal("Token does not have any of the required roles - wrong doesn't contain any of admin");
+            });
+
+            it("should pass if the token verifies and there are no required roles", () => {
+                const token = jwt.sign({ name: "Ben", roles: [] }, { key: KEY_PAIR.privateKey, passphrase: "top secret" }, { algorithm: "RS256" });
+
+                const spec: OpenAPIV3.Document = {
+                    ...DEFAULT_SPEC,
+                    paths: {
+                        "/hello": {},
+                    },
+                };
+
+                const middleware = operation({
+                    path: "/hello",
+                    method: OpenAPIV3.HttpMethods.GET,
+                    operation: {
+                        responses: {},
+                        security: [{
+                            auth: [],
+                        }],
+                    },
+                }, spec);
+
+                const req: Partial<Request> = {
+                    path: "/hello",
+                    method: "GET",
+                    headers: {
+                        authorization: `Bearer ${token}`,
+                    },
+                };
+                let nextCalled = false;
+                const next: NextFunction = () => { nextCalled = true };
+
+                middleware(req as Request, {} as Response, next);
+                expect(nextCalled).to.be.true;
+            });
+
+            it("should pass if the token verifies and has a required role", () => {
+                const token = jwt.sign({ name: "Ben", roles: ["admin"] }, { key: KEY_PAIR.privateKey, passphrase: "top secret" }, { algorithm: "RS256" });
+
+                const spec: OpenAPIV3.Document = {
+                    ...DEFAULT_SPEC,
+                    paths: {
+                        "/hello": {},
+                    },
+                };
+
+                const middleware = operation({
+                    path: "/hello",
+                    method: OpenAPIV3.HttpMethods.GET,
+                    operation: {
+                        responses: {},
+                        security: [{
+                            auth: ["admin"],
+                        }],
+                    },
+                }, spec);
+
+                const req: Partial<Request> = {
+                    path: "/hello",
+                    method: "GET",
+                    headers: {
+                        authorization: `Bearer ${token}`,
+                    },
+                };
+                let nextCalled = false;
+                const next: NextFunction = () => { nextCalled = true };
+
+                middleware(req as Request, {} as unknown as Response, next);
+                expect(nextCalled).to.be.true;
+            });
         });
 
-        it("should respond with 400 if the request path does not match the spec");
-        it("should respond with 400 if the request method does not match the spec");
+        it("should respond with 400 if the request path does not match the spec", () => {
+            const spec: OpenAPIV3.Document = {
+                ...DEFAULT_SPEC,
+                paths: {
+                    "/hello": {},
+                },
+            };
+
+            const middleware = operation({
+                path: "/hello",
+                method: OpenAPIV3.HttpMethods.GET,
+                operation: {
+                    responses: {},
+                },
+            }, spec);
+
+            const req: Partial<Request> = {
+                path: "/wrong",
+                method: "GET",
+            };
+            const res = new MockResponse();
+
+            middleware(req as Request, res as unknown as Response, () => { });
+            expect(res.code).to.equal(400);
+            expect(res.body).to.equal("Request path does not match - /wrong != /hello");
+        });
+
+        it("should respond with 400 if the request method does not match the spec", () => {
+            const spec: OpenAPIV3.Document = {
+                ...DEFAULT_SPEC,
+                paths: {
+                    "/hello": {},
+                },
+            };
+
+            const middleware = operation({
+                path: "/hello",
+                method: OpenAPIV3.HttpMethods.GET,
+                operation: {
+                    responses: {},
+                },
+            }, spec);
+
+            const req: Partial<Request> = {
+                path: "/hello",
+                method: "PUT",
+            };
+            const res = new MockResponse();
+
+            middleware(req as Request, res as unknown as Response, () => { });
+            expect(res.code).to.equal(400);
+            expect(res.body).to.equal("Request method does not match - PUT != get");
+        });
+
         it("should respond with 400 if the request query params do not match the spec");
+        it("should pass if the request query params do match the spec");
         it("should respond with 400 if the request path params do not match the spec");
-        it("should respond with 400 if the request body does not match the spec");
+        it("should pass if the request path params do match the spec");
+
+        it("should respond with 400 if the request body does not match the spec", () => {
+            const spec: OpenAPIV3.Document = {
+                ...DEFAULT_SPEC,
+                paths: {
+                    "/hello": {},
+                },
+            };
+
+            const middleware = operation({
+                path: "/hello",
+                method: OpenAPIV3.HttpMethods.POST,
+                operation: {
+                    responses: {},
+                },
+                reqBodySchema: User,
+            }, spec);
+
+            const req: Partial<Request> = {
+                path: "/hello",
+                method: "POST",
+                body: { wrong: "Ben" },
+            };
+            const res = new MockResponse();
+
+            middleware(req as Request, res as unknown as Response, () => { });
+            expect(res.code).to.equal(400);
+            expect(res.body).to.equal("Request body does not match the schema");
+        });
+
+        it("should pass if the request body does match the spec", () => {
+            const spec: OpenAPIV3.Document = {
+                ...DEFAULT_SPEC,
+                paths: {
+                    "/hello": {},
+                },
+            };
+
+            const middleware = operation({
+                path: "/hello",
+                method: OpenAPIV3.HttpMethods.POST,
+                operation: {
+                    responses: {},
+                },
+                reqBodySchema: User,
+            }, spec);
+
+            const req: Partial<Request> = {
+                path: "/hello",
+                method: "POST",
+                body: { name: "Ben" },
+            };
+            let nextCalled = false;
+            const next: NextFunction = () => { nextCalled = true };
+
+            middleware(req as Request, {} as Response, next);
+            expect(nextCalled).to.be.true;
+        });
+
         it("should respond with 400 if the response body does not match the spec");
+
+        it("should pass if the response body does match the spec");
     });
 });
 

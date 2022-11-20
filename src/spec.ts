@@ -1,11 +1,23 @@
+import crypto from "crypto";
 import { NextFunction, Request, RequestHandler, Response } from "express";
+import jwt from "jsonwebtoken";
 import { OpenAPIV3 } from "openapi-types";
 import { z, ZodSchema } from "zod";
-import jwt from "jsonwebtoken";
 import zodToJsonSchema from "zod-to-json-schema";
 
-// Test with https://token.dev/
-const SIGNING_KEY = "NTNv7j0TuYARvmNMmWXo6fKvM4o6nv/aUi9ryX38ZH+L1bkrnD1ObOQ8JAUmHCBq7Iy7otZcyAagBLHVKvvYaIpmMuxmARQ97jUVG16Jkpkp1wXOPsrF9zwew6TpczyHkHgX5EuLg2MeBuiT/qJACs1J0apruOOJCg/gOtkjB4c=";
+export const KEY_PAIR = crypto.generateKeyPairSync("rsa", {
+    modulusLength: 4096,
+    publicKeyEncoding: {
+        type: "spki",
+        format: "pem",
+    },
+    privateKeyEncoding: {
+        type: "pkcs8",
+        format: "pem",
+        cipher: "aes-256-cbc",
+        passphrase: "top secret",
+    }
+});
 
 type OperationConfig<ReqBody> = {
     path: string;
@@ -89,10 +101,14 @@ const checkSecurity = (req: Request, config: OperationConfig<any>, spec: OpenAPI
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith("Bearer ")) {
         const token = authHeader.split(" ")[1];
-        const decodedToken = Token.parse(jwt.verify(token, SIGNING_KEY));
+        const parseResult = Token.safeParse(jwt.verify(token, KEY_PAIR.publicKey));
 
-        if (requiredRoles.length > 0 && !requiredRoles.some((role) => decodedToken.roles.includes(role))) {
-            throw new Error(`Token does not have any of the required roles - ${decodedToken.roles} doesn't contain any of ${requiredRoles}`);
+        if (parseResult.success) {
+            if (requiredRoles.length > 0 && !requiredRoles.some((role) => parseResult.data.roles.includes(role))) {
+                throw new Error(`Token does not have any of the required roles - ${parseResult.data.roles} doesn't contain any of ${requiredRoles}`);
+            }
+        } else {
+            throw new Error("Token does not match the schema");
         }
     } else {
         throw new Error("No valid authorization header");
@@ -116,7 +132,12 @@ const checkQuery = () => {};
 
 const checkAndParseRequestBody = (req: Request, config: OperationConfig<any>) => {
     if (config.reqBodySchema) {
-        req.body = config.reqBodySchema.parse(req.body);
+        const parseResult = config.reqBodySchema.safeParse(req.body);
+        if (parseResult.success) {
+            req.body = parseResult.data;
+        } else {
+            throw new Error("Request body does not match the schema");
+        }
     }
 };
 

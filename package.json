@@ -1,5 +1,5 @@
 {
-  "name": "express-zod",
+  "name": "zod-openapi-middleware",
   "version": "0.0.1",
   "description": "Express middleware that validates a request using zod and generates an OpenAPI spec",
   "main": "src/index.ts",
