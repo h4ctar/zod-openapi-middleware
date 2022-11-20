@@ -6,6 +6,7 @@
   "license": "MIT",
   "scripts": {
     "build": "tsc",
+    "test": "mocha -r ts-node/register src/**/*.test.ts",
     "dev": "nodemon src/index.ts"
   },
   "dependencies": {
@@ -16,9 +17,13 @@
     "zod-to-json-schema": "^3.19.0"
   },
   "devDependencies": {
+    "@types/chai": "^4.3.4",
     "@types/express": "^4.17.14",
     "@types/jsonwebtoken": "^8.5.9",
+    "@types/mocha": "^10.0.0",
     "@types/node": "^18.11.9",
+    "chai": "^4.3.7",
+    "mocha": "^10.1.0",
     "nodemon": "^2.0.20",
     "openapi-types": "^12.0.2",
     "ts-node": "^10.9.1",

@@ -9,7 +9,6 @@ const User = z.object({
         .describe("Name of user"),
 })
     .describe("User model");
-type User = z.infer<typeof User>;
 
 const spec: OpenAPIV3.Document = {
     openapi: "3.0.0",
@@ -29,7 +28,7 @@ const spec: OpenAPIV3.Document = {
     },
     components: {
         securitySchemes: {
-            BearerAuth: {
+            auth: {
                 type: "http",
                 scheme: "bearer",
             },
@@ -46,9 +45,11 @@ app.get(
     operation({
         path: "/hello",
         method: OpenAPIV3.HttpMethods.GET,
-        summary: "Test Hello Operation",
-        description: "A long description of the test hello operation",
-        roles: [],
+        operation: {
+            summary: "Test Hello Operation",
+            description: "A long description of the test hello operation",
+            responses: {},
+        },
     }, spec),
     (_req, res) => {
         res.send("Hello World");
@@ -60,13 +61,19 @@ app.post(
     operation({
         path: "/world",
         method: OpenAPIV3.HttpMethods.POST,
-        summary: "Test World Operation",
-        description: "A long description of the test world operation",
-        reqBody: {
-            description: "The user for the request",
-            schema: User,
+        reqBodySchema: User,
+        operation: {
+            summary: "Test World Operation",
+            description: "A long description of the test world operation",
+            requestBody: {
+                description: "The user for the request",
+                content: {},
+            },
+            responses: {},
+            security: [{
+                auth: ["admin"]
+            }],
         },
-        roles: ["admin"],
     }, spec),
     (_req, res) => {
         res.send("Hello World");
