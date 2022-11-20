@@ -2,12 +2,12 @@
   "name": "zod-openapi-middleware",
   "version": "0.0.1",
   "description": "Express middleware that validates a request using zod and generates an OpenAPI spec",
-  "main": "src/index.ts",
+  "main": "src/server.ts",
   "license": "MIT",
   "scripts": {
     "build": "tsc",
     "test": "mocha -r ts-node/register src/**/*.test.ts",
-    "dev": "nodemon src/index.ts"
+    "dev": "nodemon src/server.ts"
   },
   "dependencies": {
     "express": "^4.18.2",
