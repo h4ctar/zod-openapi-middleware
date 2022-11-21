@@ -24,13 +24,22 @@ console.log(KEY_PAIR.publicKey);
 console.log(KEY_PAIR.privateKey);
 
 // The operation configuration type
-type OperationConfig<ReqBody = any> = Omit<OpenAPIV3.OperationObject, "requestBody"> & {
+type OperationConfig<ReqBody = any, ResBody = any> = Omit<OpenAPIV3.OperationObject, "requestBody" | "responses"> & {
     _path: string;
     _method: OpenAPIV3.HttpMethods;
     requestBody?: Omit<OpenAPIV3.RequestBodyObject, "content"> & {
         content: {
             "application/json": OpenAPIV3.MediaTypeObject & {
                 _schema?: ZodSchema<ReqBody>;
+            };
+        };
+    };
+    responses: {
+        [code: string]: Omit<OpenAPIV3.ResponseObject, "content"> & {
+            content: {
+                "application/json": OpenAPIV3.MediaTypeObject & {
+                    _schema?: ZodSchema<ResBody>;
+                };
             };
         };
     };
@@ -45,7 +54,9 @@ const Token = z.object({
 // The operation higher order function that returns an Express middleware
 // Adds the operation to the OpenAPI spec
 // The resulting middleware checks the security requirements and the rest of the request
-export const operation = <ReqBody = any>(operationConfig: OperationConfig<ReqBody>, spec: OpenAPIV3.Document): RequestHandler<any, any, ReqBody> => {
+export const operation = <ReqBody = any, ResBody = any>(operationConfig: OperationConfig<ReqBody, ResBody>, spec: OpenAPIV3.Document): RequestHandler<any, ResBody, ReqBody> => {
+    addRequestBodySchema(operationConfig);
+    addResponseBodySchemas(operationConfig);
     addOperationToSpec(operationConfig, spec);
 
     return (req: Request, res: Response, next: NextFunction) => {
@@ -71,6 +82,22 @@ export const operation = <ReqBody = any>(operationConfig: OperationConfig<ReqBod
     };
 };
 
+const addRequestBodySchema = (operationConfig: OperationConfig) => {
+    const schema = operationConfig.requestBody?.content["application/json"]?._schema;
+    if (schema) {
+        operationConfig.requestBody!.content["application/json"]!.schema = convertSchema(schema);
+    }
+};
+
+const addResponseBodySchemas = (operationConfig: OperationConfig) => {
+    Object.values(operationConfig.responses).forEach((response) => {
+        const schema = response.content["application/json"]._schema;
+        if (schema) {
+            response.content["application/json"]!.schema = convertSchema(schema);
+        }
+    });
+};
+
 const addOperationToSpec = (operationConfig: OperationConfig, spec: OpenAPIV3.Document) => {
     const pathObject = spec.paths[operationConfig._path];
     if (!pathObject) {
@@ -79,12 +106,6 @@ const addOperationToSpec = (operationConfig: OperationConfig, spec: OpenAPIV3.Do
 
     if (pathObject[operationConfig._method]) {
         throw new Error(`Can't add ${operationConfig._method} operation to ${operationConfig._path} as it is already declared`);
-    }
-
-    // Add request body schema
-    const schema = operationConfig.requestBody?.content["application/json"]?._schema;
-    if (schema) {
-        operationConfig.requestBody!.content["application/json"]!.schema = convertSchema(schema);
     }
 
     pathObject[operationConfig._method] = operationConfig;
@@ -152,7 +173,8 @@ const checkParams = (location: "path" | "query", req: Request, operationConfig: 
         .filter((parameter) => parameter.in === location)
         .filter((parameter) => parameter.required)
         .forEach((parameter) => {
-            if (!req.params || !req.params[parameter.name]) {
+            const property = location === "path" ? "params" : "query";
+            if (!req[property] || !req[property][parameter.name]) {
                 throw new Error(`Required ${location} parameter ${parameter.name} is missing`);
             }
         });

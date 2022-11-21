@@ -54,10 +54,10 @@ app.use(json());
 
 // Add an operation
 app.post(
-    "/hello/world/{world}",
+    "/hello/world/:world",
     operation({
         // This path needs to match the path route
-        _path: "/hello/world",
+        _path: "/hello/world/{world}",
         // This method needs to match the method that the route is added with
         _method: OpenAPIV3.HttpMethods.POST,
         summary: "Test Hello World Operation",
@@ -71,13 +71,22 @@ app.post(
                 },
             },
         },
-        responses: {},
+        responses: {
+            "200": {
+                description: "Success!",
+                content: {
+                    "application/json": {
+                        _schema: User,
+                    },
+                },
+            },
+        },
         // The scopes defined in this security requirement will be checked by the middleware
         security: [{
             auth: ["admin"]
         }],
     }, spec),
-    (_req, res) => res.send("Hello World"),
+    (req, res) => res.send(req.body),
 );
 
 // Serve the raw OpenAPI json spec
