@@ -5,8 +5,11 @@ import { OpenAPIV3 } from "openapi-types";
 import { z, ZodSchema } from "zod";
 import zodToJsonSchema from "zod-to-json-schema";
 
+// Generate a key pair to use for signing and verifying the JWTs
+// This would usually be done by an OIDC provider, but it's here for testing
 export const KEY_PAIR = crypto.generateKeyPairSync("rsa", {
-    modulusLength: 4096,
+    // RS256 requires a modulus length of at least 2048 bits
+    modulusLength: 2048,
     publicKeyEncoding: {
         type: "spki",
         format: "pem",
@@ -14,40 +17,51 @@ export const KEY_PAIR = crypto.generateKeyPairSync("rsa", {
     privateKeyEncoding: {
         type: "pkcs8",
         format: "pem",
-        cipher: "aes-256-cbc",
-        passphrase: "top secret",
-    }
+    },
 });
+// Logged so we can test with jwt.io
+console.log(KEY_PAIR.publicKey);
+console.log(KEY_PAIR.privateKey);
 
-type OperationConfig<ReqBody = any> = {
-    path: string;
-    method: OpenAPIV3.HttpMethods;
-    reqBodySchema?: ZodSchema<ReqBody>;
-    operation: OpenAPIV3.OperationObject;
+// The operation configuration type
+type OperationConfig<ReqBody = any> = Omit<OpenAPIV3.OperationObject, "requestBody"> & {
+    _path: string;
+    _method: OpenAPIV3.HttpMethods;
+    requestBody?: Omit<OpenAPIV3.RequestBodyObject, "content"> & {
+        content: {
+            "application/json": OpenAPIV3.MediaTypeObject & {
+                _schema?: ZodSchema<ReqBody>;
+            };
+        };
+    };
 };
 
+// The schema of the JWTs
 const Token = z.object({
     name: z.string(),
     roles: z.string().array(),
 });
 
-export const operation = <ReqBody = any>(config: OperationConfig<ReqBody>, spec: OpenAPIV3.Document): RequestHandler<any, any, ReqBody> => {
-    addOperationToSpec(config, spec);
+// The operation higher order function that returns an Express middleware
+// Adds the operation to the OpenAPI spec
+// The resulting middleware checks the security requirements and the rest of the request
+export const operation = <ReqBody = any>(operationConfig: OperationConfig<ReqBody>, spec: OpenAPIV3.Document): RequestHandler<any, any, ReqBody> => {
+    addOperationToSpec(operationConfig, spec);
 
     return (req: Request, res: Response, next: NextFunction) => {
         try {
-            checkSecurity(req, config, spec);
+            checkSecurity(req, operationConfig, spec);
         } catch (err: any) {
             res.status(403).send(err.message);
             return;
         }
 
         try {
-            checkPath(req, config);
-            checkMethod(req, config);
-            checkParams();
-            checkQuery();
-            checkAndParseRequestBody(req, config);
+            checkPath(req, operationConfig);
+            checkMethod(req, operationConfig);
+            checkPathParams();
+            checkQueryParams(req, operationConfig, spec);
+            checkAndParseRequestBody(req, operationConfig);
         } catch (err: any) {
             res.status(400).send(err.message);
             return;
@@ -57,34 +71,27 @@ export const operation = <ReqBody = any>(config: OperationConfig<ReqBody>, spec:
     };
 };
 
-const addOperationToSpec = (config: OperationConfig, spec: OpenAPIV3.Document) => {
-    const pathObject = spec.paths[config.path];
+const addOperationToSpec = (operationConfig: OperationConfig, spec: OpenAPIV3.Document) => {
+    const pathObject = spec.paths[operationConfig._path];
     if (!pathObject) {
-        throw new Error(`No path object in spec for ${config.path}`);
+        throw new Error(`No path object in spec for ${operationConfig._path}`);
     }
 
-    if (pathObject[config.method]) {
-        throw new Error(`Can't add ${config.method} operation to ${config.path} as it is already declared`);
+    if (pathObject[operationConfig._method]) {
+        throw new Error(`Can't add ${operationConfig._method} operation to ${operationConfig._path} as it is already declared`);
     }
 
     // Add request body schema
-    if (config.reqBodySchema) {
-        config.operation.requestBody = {
-            ...config.operation.requestBody,
-            content: {
-                ...(config.operation.requestBody as OpenAPIV3.RequestBodyObject)?.content,
-                "application/json": {
-                    schema: convertSchema(config.reqBodySchema),
-                },
-            },
-        };
+    const schema = operationConfig.requestBody?.content["application/json"]?._schema;
+    if (schema) {
+        operationConfig.requestBody!.content["application/json"]!.schema = convertSchema(schema);
     }
 
-    pathObject[config.method] = config.operation;
+    pathObject[operationConfig._method] = operationConfig;
 };
 
-const checkSecurity = (req: Request, config: OperationConfig, spec: OpenAPIV3.Document) => {
-    const security = config.operation.security || spec.security;
+const checkSecurity = (req: Request, operationConfig: OperationConfig, spec: OpenAPIV3.Document) => {
+    const security = operationConfig.security || spec.security;
     if (!security) {
         return;
     }
@@ -98,12 +105,14 @@ const checkSecurity = (req: Request, config: OperationConfig, spec: OpenAPIV3.Do
     // Find required roles
     const requiredRoles = requirement.auth;
 
+    // Decode and verify the JWT
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith("Bearer ")) {
         const token = authHeader.split(" ")[1];
-        const parseResult = Token.safeParse(jwt.verify(token, KEY_PAIR.publicKey));
+        const parseResult = Token.safeParse(jwt.verify(token, KEY_PAIR.publicKey, { algorithms: ["RS256"] }));
 
         if (parseResult.success) {
+            // Check that the JWT has one of the required roles
             if (requiredRoles.length > 0 && !requiredRoles.some((role) => parseResult.data.roles.includes(role))) {
                 throw new Error(`Token does not have any of the required roles - ${parseResult.data.roles} doesn't contain any of ${requiredRoles}`);
             }
@@ -115,24 +124,46 @@ const checkSecurity = (req: Request, config: OperationConfig, spec: OpenAPIV3.Do
     }
 };
 
-const checkPath = (req: Request, config: OperationConfig) => {
-    if (req.path !== config.path) {
-        throw new Error(`Request path does not match - ${req.path} != ${config.path}`);
+const checkPath = (req: Request, operationConfig: OperationConfig) => {
+    if (req.path !== operationConfig._path) {
+        throw new Error(`Request path does not match - ${req.path} != ${operationConfig._path}`);
     }
 };
 
-const checkMethod = (req: Request, config: OperationConfig) => {
-    if (req.method.toLowerCase() !== config.method) {
-        throw new Error(`Request method does not match - ${req.method} != ${config.method}`);
+const checkMethod = (req: Request, operationConfig: OperationConfig) => {
+    if (req.method.toLowerCase() !== operationConfig._method) {
+        throw new Error(`Request method does not match - ${req.method} != ${operationConfig._method}`);
     }
 };
 
-const checkParams = () => {};
-const checkQuery = () => {};
+const checkPathParams = () => { };
 
-const checkAndParseRequestBody = (req: Request, config: OperationConfig) => {
-    if (config.reqBodySchema) {
-        const parseResult = config.reqBodySchema.safeParse(req.body);
+const checkQueryParams = (req: Request, operationConfig: OperationConfig, spec: OpenAPIV3.Document) => {
+    const pathEntry = Object.entries(spec.paths)
+        .find((pathEntry) => req.path.match(pathEntry[0].replace(/{.*}/g, "(.*)")));
+    if (!pathEntry || !pathEntry[1]) {
+        throw new Error(`Path object could not be found for ${req.path}`);
+    }
+    const path = pathEntry[1];
+
+    const parameters = [
+        ...(path.parameters || []),
+        ...(operationConfig.parameters || []),
+    ] as OpenAPIV3.ParameterObject[];
+    parameters
+        .filter((parameter) => parameter.in === "query")
+        .filter((parameter) => parameter.required)
+        .forEach((parameter) => {
+            if (!req.params || !req.params[parameter.name]) {
+                throw new Error(`Required query parameter ${parameter.name} is missing`);
+            }
+        });
+};
+
+const checkAndParseRequestBody = (req: Request, operationConfig: OperationConfig) => {
+    const schema = operationConfig.requestBody?.content["application/json"]?._schema;
+    if (schema) {
+        const parseResult = schema.safeParse(req.body);
         if (parseResult.success) {
             req.body = parseResult.data;
         } else {
