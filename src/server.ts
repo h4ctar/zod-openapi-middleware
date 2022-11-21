@@ -50,7 +50,10 @@ export const spec: OpenAPIV3.Document = {
 
 // Create the express app
 const app = express();
+// Add the request body JSON parser middleware
 app.use(json());
+// Setup the JSON replacer so that it removes the extra properties we add to the spec
+app.set("json replacer", (key: string, value: any) => key.startsWith("_") ? undefined : value)
 
 // Add an operation
 app.post(
@@ -90,7 +93,7 @@ app.post(
 );
 
 // Serve the raw OpenAPI json spec
-app.get("/docs/openapi.json", (_req, res) => res.send(spec));
+app.get("/docs/openapi.json", (_req, res) => res.json(spec));
 // Server a rendererd OpenAPI spec
 app.get("/docs", redoc({ title: "API Docs", specUrl: "/docs/openapi.json" }));
 
