@@ -59,8 +59,8 @@ export const operation = <ReqBody = any>(operationConfig: OperationConfig<ReqBod
         try {
             checkPath(req, operationConfig);
             checkMethod(req, operationConfig);
-            checkPathParams();
-            checkQueryParams(req, operationConfig, spec);
+            checkParams("path", req, operationConfig, spec);
+            checkParams("query", req, operationConfig, spec);
             checkAndParseRequestBody(req, operationConfig);
         } catch (err: any) {
             res.status(400).send(err.message);
@@ -125,7 +125,7 @@ const checkSecurity = (req: Request, operationConfig: OperationConfig, spec: Ope
 };
 
 const checkPath = (req: Request, operationConfig: OperationConfig) => {
-    if (req.path !== operationConfig._path) {
+    if (!req.path.match(operationConfig._path.replace(/{.*}/g, "(.*)"))) {
         throw new Error(`Request path does not match - ${req.path} != ${operationConfig._path}`);
     }
 };
@@ -136,9 +136,7 @@ const checkMethod = (req: Request, operationConfig: OperationConfig) => {
     }
 };
 
-const checkPathParams = () => { };
-
-const checkQueryParams = (req: Request, operationConfig: OperationConfig, spec: OpenAPIV3.Document) => {
+const checkParams = (location: "path" | "query", req: Request, operationConfig: OperationConfig, spec: OpenAPIV3.Document) => {
     const pathEntry = Object.entries(spec.paths)
         .find((pathEntry) => req.path.match(pathEntry[0].replace(/{.*}/g, "(.*)")));
     if (!pathEntry || !pathEntry[1]) {
@@ -151,11 +149,11 @@ const checkQueryParams = (req: Request, operationConfig: OperationConfig, spec: 
         ...(operationConfig.parameters || []),
     ] as OpenAPIV3.ParameterObject[];
     parameters
-        .filter((parameter) => parameter.in === "query")
+        .filter((parameter) => parameter.in === location)
         .filter((parameter) => parameter.required)
         .forEach((parameter) => {
             if (!req.params || !req.params[parameter.name]) {
-                throw new Error(`Required query parameter ${parameter.name} is missing`);
+                throw new Error(`Required ${location} parameter ${parameter.name} is missing`);
             }
         });
 };

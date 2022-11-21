@@ -441,7 +441,7 @@ describe("spec middleware", () => {
             expect(res.body).to.equal("Required query parameter param is missing");
         });
 
-        it("should pass if the request query params do match the spec", () => {
+        it("should pass if the request query params match the spec", () => {
             const spec: OpenAPIV3.Document = {
                 ...DEFAULT_SPEC,
                 paths: {
@@ -475,8 +475,70 @@ describe("spec middleware", () => {
             expect(nextCalled).to.be.true;
         });
 
-        it("should respond with 400 if the request path params do not match the spec");
-        it("should pass if the request path params do match the spec");
+        it("should respond with 400 if the request path params do not match the spec", () => {
+            const spec: OpenAPIV3.Document = {
+                ...DEFAULT_SPEC,
+                paths: {
+                    "/users/{userId}": {
+                        parameters: [{
+                            name: "userId",
+                            in: "path",
+                            required: true,
+                        }],
+                    },
+                },
+            };
+
+            const middleware = operation({
+                _path: "/users/{userId}",
+                _method: OpenAPIV3.HttpMethods.GET,
+                responses: {},
+            }, spec);
+
+            const req: Partial<Request> = {
+                path: "/users/",
+                method: "GET",
+            };
+            const res = new MockResponse();
+
+            middleware(req as Request, res as unknown as Response, () => { });
+            expect(res.code).to.equal(400);
+            expect(res.body).to.equal("Required path parameter userId is missing");
+        });
+
+        it("should pass if the request path params match the spec", () => {
+            const spec: OpenAPIV3.Document = {
+                ...DEFAULT_SPEC,
+                paths: {
+                    "/users/{userId}": {
+                        parameters: [{
+                            name: "userId",
+                            in: "path",
+                            required: true,
+                        }],
+                    },
+                },
+            };
+
+            const middleware = operation({
+                _path: "/users/{userId}",
+                _method: OpenAPIV3.HttpMethods.GET,
+                responses: {},
+            }, spec);
+
+            const req: Partial<Request> = {
+                path: "/users/Ben",
+                method: "GET",
+                params: {
+                    userId: "Ben",
+                },
+            };
+            let nextCalled = false;
+            const next: NextFunction = () => { nextCalled = true };
+
+            middleware(req as Request, {} as Response, next);
+            expect(nextCalled).to.be.true;
+        });
 
         it("should respond with 400 if the request body does not match the spec", () => {
             const spec: OpenAPIV3.Document = {

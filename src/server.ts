@@ -19,21 +19,23 @@ export const spec: OpenAPIV3.Document = {
     },
     // All the paths need to be created up front, we want to do this anyway so they have a nice summary and description
     paths: {
-        "/hello": {
-            summary: "Hello Path",
-            description: "Long description of the hello path",
-        },
-        "/world": {
-            summary: "World Path",
-            description: "Long description of the world path",
-        },
-        "/query": {
-            summary: "Query Path",
-            description: "Long description of the query path",
-            parameters: [{
-                name: "hello",
-                in: "query",
-            }],
+        "/hello/world/{world}": {
+            summary: "Hello World Path",
+            description: "Long description of the hello world path",
+            // The parameters can be defined here for the path, or in each operation
+            // We only support text/plain
+            parameters: [
+                {
+                    name: "hello",
+                    in: "query",
+                    required: true,
+                },
+                {
+                    name: "world",
+                    in: "path",
+                    required: true,
+                },
+            ],
         },
     },
     components: {
@@ -50,33 +52,19 @@ export const spec: OpenAPIV3.Document = {
 const app = express();
 app.use(json());
 
-// Add a GET operation
-app.get(
-    "/hello",
+// Add an operation
+app.post(
+    "/hello/world/{world}",
     operation({
         // This path needs to match the path route
-        _path: "/hello",
+        _path: "/hello/world",
         // This method needs to match the method that the route is added with
-        _method: OpenAPIV3.HttpMethods.GET,
-        // This is the OpenAPI operation spec
-        summary: "Test Hello Operation",
-        description: "A long description of the test hello operation",
-        responses: {},
-    }, spec),
-    (_req, res) => res.send("Hello World"),
-);
-
-// Add a POST operation with request body schema
-app.post(
-    "/world",
-    operation({
-        _path: "/world",
         _method: OpenAPIV3.HttpMethods.POST,
-        // This request body zod schema will be converted to an OpenAPI schema by zod-to-json-schema and overwrite any requestBody schema defined below
-        summary: "Test World Operation",
-        description: "A long description of the test world operation",
+        summary: "Test Hello World Operation",
+        description: "A long description of the test world hello operation",
+        // This request body zod schema will be converted to an OpenAPI schema by zod-to-json-schema and overwrite any requestBody schema
         requestBody: {
-            description: "The user for the request",
+            description: "The body for the request",
             content: {
                 "application/json": {
                     _schema: User,
@@ -88,17 +76,6 @@ app.post(
         security: [{
             auth: ["admin"]
         }],
-    }, spec),
-    (_req, res) => res.send("Hello World"),
-);
-
-// Add an operation with query params
-app.get(
-    "/query",
-    operation({
-        _path: "/query",
-        _method: OpenAPIV3.HttpMethods.GET,
-        responses: {},
     }, spec),
     (_req, res) => res.send("Hello World"),
 );
