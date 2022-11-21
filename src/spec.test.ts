@@ -1,9 +1,9 @@
 import { expect } from "chai";
 import { NextFunction, Request, Response } from "express";
+import jwt from "jsonwebtoken";
 import { OpenAPIV3 } from "openapi-types";
 import { z } from "zod";
-import { operation, KEY_PAIR } from "./spec";
-import jwt from "jsonwebtoken";
+import { KEY_PAIR, operation } from "./spec";
 
 const User = z.object({
     name: z.string().describe("Name of user"),
@@ -37,12 +37,10 @@ describe("spec middleware", () => {
             };
 
             operation({
-                path: "/hello",
-                method: OpenAPIV3.HttpMethods.GET,
-                operation: {
-                    summary: "Test Hello Operation",
-                    responses: {},
-                },
+                _path: "/hello",
+                _method: OpenAPIV3.HttpMethods.GET,
+                summary: "Test Hello Operation",
+                responses: {},
             }, spec);
 
             expect(spec.paths["/hello"]?.get).to.exist;
@@ -56,11 +54,9 @@ describe("spec middleware", () => {
             };
 
             expect(() => operation({
-                path: "/hello",
-                method: OpenAPIV3.HttpMethods.GET,
-                operation: {
-                    responses: {},
-                },
+                _path: "/hello",
+                _method: OpenAPIV3.HttpMethods.GET,
+                responses: {},
             }, spec)).to.throw("No path object in spec for /hello");
         });
 
@@ -77,11 +73,9 @@ describe("spec middleware", () => {
             };
 
             expect(() => operation({
-                path: "/hello",
-                method: OpenAPIV3.HttpMethods.GET,
-                operation: {
-                    responses: {},
-                },
+                _path: "/hello",
+                _method: OpenAPIV3.HttpMethods.GET,
+                responses: {},
             }, spec)).to.throw("Can't add get operation to /hello as it is already declared");
         });
 
@@ -94,12 +88,16 @@ describe("spec middleware", () => {
             };
 
             operation({
-                path: "/hello",
-                method: OpenAPIV3.HttpMethods.GET,
-                reqBodySchema: User,
-                operation: {
-                    responses: {},
+                _path: "/hello",
+                _method: OpenAPIV3.HttpMethods.GET,
+                requestBody: {
+                    content: {
+                        "application/json": {
+                            _schema: User,
+                        },
+                    },
                 },
+                responses: {},
             }, spec);
 
             const requestBody = spec.paths["/hello"]?.get?.requestBody as OpenAPIV3.RequestBodyObject;
@@ -122,11 +120,9 @@ describe("spec middleware", () => {
                 };
 
                 const middleware = operation({
-                    path: "/hello",
-                    method: OpenAPIV3.HttpMethods.GET,
-                    operation: {
-                        responses: {},
-                    },
+                    _path: "/hello",
+                    _method: OpenAPIV3.HttpMethods.GET,
+                    responses: {},
                 }, spec);
 
                 const req: Partial<Request> = {
@@ -149,14 +145,12 @@ describe("spec middleware", () => {
                 };
 
                 const middleware = operation({
-                    path: "/hello",
-                    method: OpenAPIV3.HttpMethods.GET,
-                    operation: {
-                        responses: {},
-                        security: [{
-                            auth: [],
-                        }],
-                    },
+                    _path: "/hello",
+                    _method: OpenAPIV3.HttpMethods.GET,
+                    responses: {},
+                    security: [{
+                        auth: [],
+                    }],
                 }, spec);
 
                 const req: Partial<Request> = {
@@ -180,14 +174,12 @@ describe("spec middleware", () => {
                 };
 
                 const middleware = operation({
-                    path: "/hello",
-                    method: OpenAPIV3.HttpMethods.GET,
-                    operation: {
-                        responses: {},
-                        security: [{
-                            auth: [],
-                        }],
-                    },
+                    _path: "/hello",
+                    _method: OpenAPIV3.HttpMethods.GET,
+                    responses: {},
+                    security: [{
+                        auth: [],
+                    }],
                 }, spec);
 
                 const req: Partial<Request> = {
@@ -213,14 +205,12 @@ describe("spec middleware", () => {
                 };
 
                 const middleware = operation({
-                    path: "/hello",
-                    method: OpenAPIV3.HttpMethods.GET,
-                    operation: {
-                        responses: {},
-                        security: [{
-                            auth: [],
-                        }],
-                    },
+                    _path: "/hello",
+                    _method: OpenAPIV3.HttpMethods.GET,
+                    responses: {},
+                    security: [{
+                        auth: [],
+                    }],
                 }, spec);
 
                 const req: Partial<Request> = {
@@ -248,14 +238,12 @@ describe("spec middleware", () => {
                 };
 
                 const middleware = operation({
-                    path: "/hello",
-                    method: OpenAPIV3.HttpMethods.GET,
-                    operation: {
-                        responses: {},
-                        security: [{
-                            auth: [],
-                        }],
-                    },
+                    _path: "/hello",
+                    _method: OpenAPIV3.HttpMethods.GET,
+                    responses: {},
+                    security: [{
+                        auth: [],
+                    }],
                 }, spec);
 
                 const req: Partial<Request> = {
@@ -283,14 +271,12 @@ describe("spec middleware", () => {
                 };
 
                 const middleware = operation({
-                    path: "/hello",
-                    method: OpenAPIV3.HttpMethods.GET,
-                    operation: {
-                        responses: {},
-                        security: [{
-                            auth: ["admin"],
-                        }],
-                    },
+                    _path: "/hello",
+                    _method: OpenAPIV3.HttpMethods.GET,
+                    responses: {},
+                    security: [{
+                        auth: ["admin"],
+                    }],
                 }, spec);
 
                 const req: Partial<Request> = {
@@ -318,14 +304,12 @@ describe("spec middleware", () => {
                 };
 
                 const middleware = operation({
-                    path: "/hello",
-                    method: OpenAPIV3.HttpMethods.GET,
-                    operation: {
-                        responses: {},
-                        security: [{
-                            auth: [],
-                        }],
-                    },
+                    _path: "/hello",
+                    _method: OpenAPIV3.HttpMethods.GET,
+                    responses: {},
+                    security: [{
+                        auth: [],
+                    }],
                 }, spec);
 
                 const req: Partial<Request> = {
@@ -353,14 +337,12 @@ describe("spec middleware", () => {
                 };
 
                 const middleware = operation({
-                    path: "/hello",
-                    method: OpenAPIV3.HttpMethods.GET,
-                    operation: {
-                        responses: {},
-                        security: [{
-                            auth: ["admin"],
-                        }],
-                    },
+                    _path: "/hello",
+                    _method: OpenAPIV3.HttpMethods.GET,
+                    responses: {},
+                    security: [{
+                        auth: ["admin"],
+                    }],
                 }, spec);
 
                 const req: Partial<Request> = {
@@ -387,11 +369,9 @@ describe("spec middleware", () => {
             };
 
             const middleware = operation({
-                path: "/hello",
-                method: OpenAPIV3.HttpMethods.GET,
-                operation: {
-                    responses: {},
-                },
+                _path: "/hello",
+                _method: OpenAPIV3.HttpMethods.GET,
+                responses: {},
             }, spec);
 
             const req: Partial<Request> = {
@@ -414,11 +394,9 @@ describe("spec middleware", () => {
             };
 
             const middleware = operation({
-                path: "/hello",
-                method: OpenAPIV3.HttpMethods.GET,
-                operation: {
-                    responses: {},
-                },
+                _path: "/hello",
+                _method: OpenAPIV3.HttpMethods.GET,
+                responses: {},
             }, spec);
 
             const req: Partial<Request> = {
@@ -432,8 +410,71 @@ describe("spec middleware", () => {
             expect(res.body).to.equal("Request method does not match - PUT != get");
         });
 
-        it("should respond with 400 if the request query params do not match the spec");
-        it("should pass if the request query params do match the spec");
+        it("should respond with 400 if the request query params do not match the spec", () => {
+            const spec: OpenAPIV3.Document = {
+                ...DEFAULT_SPEC,
+                paths: {
+                    "/query": {
+                        parameters: [{
+                            name: "param",
+                            in: "query",
+                            required: true,
+                        }],
+                    },
+                },
+            };
+
+            const middleware = operation({
+                _path: "/query",
+                _method: OpenAPIV3.HttpMethods.GET,
+                responses: {},
+            }, spec);
+
+            const req: Partial<Request> = {
+                path: "/query",
+                method: "GET",
+            };
+            const res = new MockResponse();
+
+            middleware(req as Request, res as unknown as Response, () => { });
+            expect(res.code).to.equal(400);
+            expect(res.body).to.equal("Required query parameter param is missing");
+        });
+
+        it("should pass if the request query params do match the spec", () => {
+            const spec: OpenAPIV3.Document = {
+                ...DEFAULT_SPEC,
+                paths: {
+                    "/query": {
+                        parameters: [{
+                            name: "param",
+                            in: "query",
+                            required: true,
+                        }],
+                    },
+                },
+            };
+
+            const middleware = operation({
+                _path: "/query",
+                _method: OpenAPIV3.HttpMethods.GET,
+                responses: {},
+            }, spec);
+
+            const req: Partial<Request> = {
+                path: "/query",
+                params: {
+                    param: "Ben",
+                },
+                method: "GET",
+            };
+            let nextCalled = false;
+            const next: NextFunction = () => { nextCalled = true };
+
+            middleware(req as Request, {} as Response, next);
+            expect(nextCalled).to.be.true;
+        });
+
         it("should respond with 400 if the request path params do not match the spec");
         it("should pass if the request path params do match the spec");
 
@@ -446,12 +487,16 @@ describe("spec middleware", () => {
             };
 
             const middleware = operation({
-                path: "/hello",
-                method: OpenAPIV3.HttpMethods.POST,
-                operation: {
-                    responses: {},
+                _path: "/hello",
+                _method: OpenAPIV3.HttpMethods.POST,
+                requestBody: {
+                    content: {
+                        "application/json": {
+                            _schema: User,
+                        },
+                    },
                 },
-                reqBodySchema: User,
+                responses: {},
             }, spec);
 
             const req: Partial<Request> = {
@@ -475,12 +520,16 @@ describe("spec middleware", () => {
             };
 
             const middleware = operation({
-                path: "/hello",
-                method: OpenAPIV3.HttpMethods.POST,
-                operation: {
-                    responses: {},
+                _path: "/hello",
+                _method: OpenAPIV3.HttpMethods.POST,
+                requestBody: {
+                    content: {
+                        "application/json": {
+                            _schema: User,
+                        },
+                    },
                 },
-                reqBodySchema: User,
+                responses: {},
             }, spec);
 
             const req: Partial<Request> = {

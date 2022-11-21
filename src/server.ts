@@ -5,13 +5,13 @@ import { z } from "zod";
 import { operation } from "./spec";
 
 // Create schemas using zod
-const User = z.object({
+export const User = z.object({
     name: z.string().describe("Name of user"),
 }).describe("User model");
 
 // Write all the spec except the operations using the openapi-types
 // As routes are created they will be added to this object
-const spec: OpenAPIV3.Document = {
+export const spec: OpenAPIV3.Document = {
     openapi: "3.0.0",
     info: {
         title: "Test API",
@@ -55,15 +55,13 @@ app.get(
     "/hello",
     operation({
         // This path needs to match the path route
-        path: "/hello",
+        _path: "/hello",
         // This method needs to match the method that the route is added with
-        method: OpenAPIV3.HttpMethods.GET,
+        _method: OpenAPIV3.HttpMethods.GET,
         // This is the OpenAPI operation spec
-        operation: {
-            summary: "Test Hello Operation",
-            description: "A long description of the test hello operation",
-            responses: {},
-        },
+        summary: "Test Hello Operation",
+        description: "A long description of the test hello operation",
+        responses: {},
     }, spec),
     (_req, res) => res.send("Hello World"),
 );
@@ -72,23 +70,24 @@ app.get(
 app.post(
     "/world",
     operation({
-        path: "/world",
-        method: OpenAPIV3.HttpMethods.POST,
+        _path: "/world",
+        _method: OpenAPIV3.HttpMethods.POST,
         // This request body zod schema will be converted to an OpenAPI schema by zod-to-json-schema and overwrite any requestBody schema defined below
-        reqBodySchema: User,
-        operation: {
-            summary: "Test World Operation",
-            description: "A long description of the test world operation",
-            requestBody: {
-                description: "The user for the request",
-                content: {},
+        summary: "Test World Operation",
+        description: "A long description of the test world operation",
+        requestBody: {
+            description: "The user for the request",
+            content: {
+                "application/json": {
+                    _schema: User,
+                },
             },
-            responses: {},
-            // The scopes defined in this security requirement will be checked by the middleware
-            security: [{
-                auth: ["admin"]
-            }],
         },
+        responses: {},
+        // The scopes defined in this security requirement will be checked by the middleware
+        security: [{
+            auth: ["admin"]
+        }],
     }, spec),
     (_req, res) => res.send("Hello World"),
 );
@@ -97,11 +96,9 @@ app.post(
 app.get(
     "/query",
     operation({
-        path: "/query",
-        method: OpenAPIV3.HttpMethods.GET,
-        operation: {
-            responses: {},
-        },
+        _path: "/query",
+        _method: OpenAPIV3.HttpMethods.GET,
+        responses: {},
     }, spec),
     (_req, res) => res.send("Hello World"),
 );
