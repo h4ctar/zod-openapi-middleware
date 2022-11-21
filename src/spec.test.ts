@@ -463,7 +463,7 @@ describe("spec middleware", () => {
 
             const req: Partial<Request> = {
                 path: "/query",
-                params: {
+                query: {
                     param: "Ben",
                 },
                 method: "GET",
